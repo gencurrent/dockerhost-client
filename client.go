@@ -9,20 +9,16 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/gorilla/websocket"
 	Handlers "./handlers"
+	Types "./types"
+	"github.com/gorilla/websocket"
 )
 
-type RequestStruct struct {
-	Request   string                 `json:"request"`
-	Arguments map[string]interface{} `json:"arguments"`
-}
+var RequestQueue []Types.RequestStruct
 
-var RequestQueue []RequestStruct
-
-func GetLastRequest() RequestStruct {
+func GetLastRequest() Types.RequestStruct {
 	if len(RequestQueue) == 0 {
-		return RequestStruct{
+		return Types.RequestStruct{
 			Request:   "status",
 			Arguments: make(map[string]interface{}),
 		}
@@ -33,13 +29,15 @@ func GetLastRequest() RequestStruct {
 	}
 }
 
+var registryAddress = "192.168.1.63:5000"
+
 var addr = flag.String("addr", "192.168.1.63:8000", "http service address")
 
 func main() {
 
 	args := make(map[string]interface{})
 	args["newImage"] = "Just joking"
-	toAppend := RequestStruct{
+	toAppend := Types.RequestStruct{
 		Request:   "docker.image",
 		Arguments: args,
 	}
@@ -65,7 +63,7 @@ func main() {
 	}
 
 	defer c.Close()
-	requestMessage := make(chan RequestStruct)
+	requestMessage := make(chan Types.RequestStruct)
 	done := make(chan struct{})
 
 	messageRead := make(chan string)
@@ -81,7 +79,7 @@ func main() {
 				return
 			}
 			messageRead <- string(message)
-			log.Printf("recv: %s", message)
+			log.Printf("Request full body: %s", message)
 		}
 	}()
 
@@ -105,17 +103,17 @@ func main() {
 		case <-ticker.C:
 			log.Printf("Ticker detected")
 			newMessage := <-messageRead
-			log.Printf("The message after ticker == %s", newMessage)
-			
-			var resultStruct RequestStruct
+			// log.Printf("The message after ticker == %s", newMessage)
+
+			var resultStruct Types.RequestStruct
 			err := json.Unmarshal([]byte(newMessage), &resultStruct)
-			if err != nil{
+			if err != nil {
 				log.Printf("Error decoding request from server: %s", err)
 				panic(err)
 				continue
 			}
 			// 		// messageRequest := <-requestMessage
-			requestResult := Handlers.HandleRequest(resultStruct.Request, resultStruct.Arguments)
+			requestResult := Handlers.HandleRequest(&resultStruct, &registryAddress)
 
 			// var responseType make(map[string]interface{}
 			encoded, err := json.Marshal(requestResult)
