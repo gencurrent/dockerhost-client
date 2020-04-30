@@ -35,13 +35,13 @@ var addr = flag.String("addr", "192.168.1.63:8000", "http service address")
 
 func main() {
 
-	args := make(map[string]interface{})
-	args["newImage"] = "Just joking"
-	toAppend := Types.RequestStruct{
-		Request:   "docker.image",
-		Arguments: args,
-	}
-	RequestQueue = append(RequestQueue, toAppend)
+	// args := make(map[string]interface{})
+	// toAppend := Types.RequestStruct{
+	// 	Request:   "docker.image",
+	// 	Arguments: args,
+	// }
+	Handlers.UpdateClientImageList()
+	// RequestQueue = append(RequestQueue, toAppend)
 	log.Printf("The last request: %v", GetLastRequest().Request)
 	log.Printf("The last request: %v", GetLastRequest().Request)
 
@@ -83,40 +83,34 @@ func main() {
 		}
 	}()
 
-	// // mmap := make(map[string]interface{})
-
-	// // messageStruct := &RequestStruct{
-	// // 	Request:   "image.list",
-	// // 	Arguments: mmap,
-	// // }
-	// // messageString, err := json.Marshal(messageStruct)
-	// // if err != nil {
-	// // 	log.Printf("Could not encode the json :%s", err)
-	// // }
 	ticker := time.NewTicker(time.Second)
 
 	for {
-		log.Printf("Waiting for 'done'")
 		select {
 		case <-done:
 			return
 		case <-ticker.C:
-			log.Printf("Ticker detected")
+			log.Println("<<<<")
 			newMessage := <-messageRead
 			// log.Printf("The message after ticker == %s", newMessage)
 
-			var resultStruct Types.RequestStruct
-			err := json.Unmarshal([]byte(newMessage), &resultStruct)
+			var requestStruct Types.RequestStruct
+			err := json.Unmarshal([]byte(newMessage), &requestStruct)
 			if err != nil {
 				log.Printf("Error decoding request from server: %s", err)
 				panic(err)
 				continue
 			}
+
 			// 		// messageRequest := <-requestMessage
-			requestResult := Handlers.HandleRequest(&resultStruct, &registryAddress)
+			requestResult := Handlers.HandleRequest(&requestStruct, &registryAddress)
+			responseStruct := Types.ResponseStruct{
+				Request:   requestStruct.Request,
+				Arguments: requestResult,
+			}
 
 			// var responseType make(map[string]interface{}
-			encoded, err := json.Marshal(requestResult)
+			encoded, err := responseStruct.Marshal()
 			if err != nil {
 				log.Printf("Error encoding the result into the JSON string: %s", err)
 				panic(err)
@@ -127,6 +121,8 @@ func main() {
 				log.Println("write:", err)
 				return
 			}
+
+			log.Println(">>>>")
 		case <-interrupt:
 			log.Println("interrupt")
 
