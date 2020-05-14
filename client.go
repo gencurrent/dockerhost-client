@@ -34,7 +34,6 @@ var registryAddress = "192.168.1.63:5000"
 var addr = flag.String("addr", "192.168.1.63:8000", "http service address")
 
 func main() {
-
 	// args := make(map[string]interface{})
 	// toAppend := Types.RequestStruct{
 	// 	Request:   "docker.image",
@@ -42,7 +41,6 @@ func main() {
 	// }
 	Handlers.UpdateClientImageList()
 	// RequestQueue = append(RequestQueue, toAppend)
-	log.Printf("The last request: %v", GetLastRequest().Request)
 	log.Printf("The last request: %v", GetLastRequest().Request)
 
 	log.Printf("Started the client")

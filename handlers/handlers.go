@@ -107,7 +107,10 @@ func UpdateClientContainerList() {
 		panic(err)
 	}
 
-	containerList, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	containerListOptions := types.ContainerListOptions{
+		All: true,
+	}
+	containerList, err := cli.ContainerList(context.Background(), containerListOptions)
 	ClientContainerList = containerList
 }
 
@@ -127,31 +130,30 @@ func HandleRequest(req *Types.RequestStruct, regsitryUrl *string) map[string]int
 		break
 
 	case "Image.Pull":
-		var listArg []string
+
 		log.Printf("The image list to process ==>")
-		log.Println(req.Arguments["List"])
-		s := reflect.ValueOf(req.Arguments["List"])
-		if s.Kind() != reflect.Slice {
-			panic("INterface mismatches!")
+
+		imageTag := req.Arguments["Image.Tag"].(string)
+		// log.Println(imageTag...)
+		s := reflect.ValueOf(imageTag)
+		if s.Kind() != reflect.String {
+			panic("Interface mismatches!")
 		}
 
-		for i := 0; i < s.Len(); i++ {
-			listArg = append(listArg, fmt.Sprintf("%s", s.Index(i)))
-		}
-		log.Printf("The listArg = %v", listArg)
+		// imageTag := []
 
-		for i, image := range listArg {
-			log.Printf("Image.Pull :: Iteration # %i", i)
-			imageTagSource := fmt.Sprintf("%v/%v", *regsitryUrl, image)
-			log.Printf("HandleRequest :: {imageTagSource: %s, image: `%s`}", imageTagSource, image)
-			err = ImagePullSingle(imageTagSource, image)
-			if err != nil {
-				result["error"] = err
-				break
-			}
-			resultList = append(resultList, image)
+		// for i := 0; i < s.Len(); i++ {
+		// 	listArg = append(listArg, fmt.Sprintf("%s", s.Index(i)))
+		// }
+		// log.Printf("The listArg = %v", listArg)
 
+		imageTagSource := fmt.Sprintf("%v/%v", *regsitryUrl, imageTag)
+		err = ImagePullSingle(imageTagSource, imageTag)
+		if err != nil {
+			result["error"] = err
+			break
 		}
+		resultList = append(resultList, "Success")
 		result["List"] = resultList
 		break
 
@@ -166,10 +168,32 @@ func HandleRequest(req *Types.RequestStruct, regsitryUrl *string) map[string]int
 		result["List"] = []string{"Success"}
 		break
 
+	case "Container.Pause":
+		containerID := req.Arguments["Container.ID"]
+
+		err = PauseContainer(containerID.(string))
+		if err != nil {
+			result["error"] = err
+			break
+		}
+		result["List"] = []string{"Success"}
+		break
+
 	case "Container.Stop":
 		containerID := req.Arguments["Container.ID"]
 
 		err = StopContainer(containerID.(string))
+		if err != nil {
+			result["error"] = err
+			break
+		}
+		result["List"] = []string{"Success"}
+		break
+
+	case "Container.Delete":
+		containerID := req.Arguments["Container.ID"]
+
+		err = DeleteContainer(containerID.(string))
 		if err != nil {
 			result["error"] = err
 			break
@@ -254,20 +278,56 @@ func RunContainer(imageName string) error {
 
 }
 
-// StopContainer starts a new container by it's image name
-func StopContainer(containerTag string) error {
+// PauseContainer stops a container
+func PauseContainer(containerID string) error {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)
 	}
 
-	err = cli.ContainerStop(ctx, containerTag, nil)
+	err = cli.ContainerPause(ctx, containerID)
 	if err != nil {
 		panic(err)
 		return err
 	}
-	fmt.Printf("Stopped a container with ID %s", containerTag)
+	fmt.Printf("Stopped a container with ID %s", containerID)
+
+	return nil
+}
+
+// StopContainer stops a container
+func StopContainer(containerID string) error {
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		panic(err)
+	}
+
+	err = cli.ContainerStop(ctx, containerID, nil)
+	if err != nil {
+		panic(err)
+		return err
+	}
+	fmt.Printf("Stopped a container with ID %s", containerID)
+
+	return nil
+}
+
+// DeleteContainer deletes a container
+func DeleteContainer(containerID string) error {
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		panic(err)
+	}
+
+	err = cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
+	if err != nil {
+		panic(err)
+		return err
+	}
+	fmt.Printf("Deleted a container with ID %s", containerID)
 
 	return nil
 
